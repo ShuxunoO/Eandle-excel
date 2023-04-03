@@ -130,3 +130,5 @@ dmypy.json
 
 # excel files
 *.xlsx
+*.xls
+*.log
