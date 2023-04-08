@@ -3,6 +3,7 @@ import os
 import re
 import pandas as pd
 import logging
+import time
 
 # 定义文件输出路径
 output_path = os.path.dirname(__file__)
@@ -30,7 +31,6 @@ def split_str(file_name, row_index, target_str, delimiter_list):
         按照指定分隔符将字符串分割成列表。
         如果不能切割成指定的列表长度，则返回空, 并打印相关信息到日志文件中
 
-
     Args:
         target_str (str): 将要被分割的字符串
         delimiter_list (list): 用于分割字符串的字符列表
@@ -42,12 +42,14 @@ def split_str(file_name, row_index, target_str, delimiter_list):
     # assert len(delimiter_list) > 0
     try:
         result_str = re.split('|'.join(delimiter_list), target_str)
+
         fact = "本案现已审理终结。" + result_str[1] + "本院认为"
         criteria = "本院认为：" + result_str[2] + "，判决如下："
-        return fact, criteria
+        clause = "判决如下" + result_str[3] + "审判员"
+        return fact, criteria, clause
     except:
         logging.info("{}的第{}行分割异常！".format(file_name, row_index))
-        return "None", "None"
+        return "None", "None", "None"
 
 
 if __name__ == "__main__":
@@ -61,16 +63,17 @@ if __name__ == "__main__":
     delimiter_list2 = ["本案现已审理终结", "本院认为", "判决如下"]
 
     # 新建一个分割后的文件模板
-    columns = ["CASENO", "courtname", "judgeresult", "content", "fact", "criteria"]
+    columns = ["CASENO", "courtname", "judgeresult", "content", "fact", "criteria", "clause"]
     data = {
         "CASENO": [],
         "courtname": [],
         "judgeresult": [],
         "content": [],
         "fact": [],
-        "criteria": []
+        "criteria": [],
+        "clause": []
     }
-
+    start_time = time.time()
     # 遍历每一个excel文件列表
     for file_index in range(len(file_path_list)):
         # 读取excel文件内容
@@ -81,17 +84,18 @@ if __name__ == "__main__":
             data["courtname"].append(row["courtname"])
             data["judgeresult"].append(row["judgeresult"])
             data["content"].append(row["content"])
-            fact, criteria = split_str(file_name = file_list[file_index], row_index=row_index + 2, target_str=row["content"], delimiter_list=delimiter_list1)
+            fact, criteria, clause = split_str(file_name = file_list[file_index], row_index=row_index + 2, target_str=row["content"], delimiter_list=delimiter_list1)
             data["fact"].append(fact)
             data["criteria"].append(criteria)
             content = row["content"]
-    
+            data["clause"].append(clause)
+
+        # 将字典转换成DataFrame
         new_excel = pd.DataFrame(data, columns=columns)
         # 使用 ExcelWriter 上下文管理器
         with pd.ExcelWriter(os.path.join(output_path,"output", "new_{}".format(file_list[file_index])), engine='xlsxwriter') as writer:
             # 遍历 DataFrame 的每一行，逐行写入 Excel 文件
             new_excel.to_excel(writer, sheet_name='Sheet1', index=False)
-            # 保存文件
-            writer.save()
-        writer.close()
-    print('文件处理完成')
+    end_time = time.time()
+    print("文件处理完成!  程序运行时间：{}s".format(end_time - start_time))
+
